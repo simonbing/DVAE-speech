@@ -18,8 +18,8 @@ class eICUSequence(data.Dataset):
 
     TODO: Implement actually using eICU data. Randomly sampling for now.
     """
-    def __init__(self, sequence_len, shuffle, name='eICU'):
-        super.__init__()
+    def __init__(self, N, sequence_len, shuffle, name='eICU'):
+        super().__init__()
 
         # Dataset parameters
         self.sequence_len = sequence_len
@@ -27,9 +27,9 @@ class eICUSequence(data.Dataset):
         self.name = name
 
         # TODO: generate random np array
-        self.len = 500
+        self.len = N
         self.dim = 15
-        self.data = np.random.rand(self.len, self.sequence_len, self.dim)
+        self.data = np.random.rand(self.len, self.dim, self.sequence_len)
 
     def __len__(self):
         """
@@ -44,5 +44,5 @@ class eICUSequence(data.Dataset):
         torch data loader will use this function to read ONE sample of data from a list that can be indexed by
         parameter 'index'
         """
-        return torch.to_numpy(self.data[index, :, :])
+        return torch.from_numpy(self.data[index, :, :]).float()
 

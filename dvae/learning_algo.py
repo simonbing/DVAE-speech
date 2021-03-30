@@ -21,7 +21,7 @@ import torch
 import librosa
 import soundfile as sf
 import matplotlib.pyplot as plt
-from .utils import myconf, get_logger, SpeechSequencesFull, SpeechSequencesRandom
+from .utils import myconf, get_logger, SpeechSequencesFull, SpeechSequencesRandom, eICUSequence
 from .model import build_VAE, build_DKF, build_KVAE, build_STORN, build_VRNN, build_SRNN, build_RVAE, build_DSAE
 
 
@@ -50,6 +50,7 @@ class LearningAlgorithm():
         self.date = datetime.datetime.now().strftime("%Y-%m-%d-%Hh%M")
         
         # Load STFT parameters
+        ### NOT USED FOR eICU ###
         wlen_sec = self.cfg.getfloat('STFT', 'wlen_sec')
         hop_percent = self.cfg.getfloat('STFT', 'hop_percent')
         fs = self.cfg.getint('STFT', 'fs')
@@ -130,16 +131,24 @@ class LearningAlgorithm():
         shuffle_samples_in_batch = self.cfg.get('DataFrame', 'shuffle_samples_in_batch')
 
         # Instantiate dataloader
-        if use_random_seq:
-            train_dataset = SpeechSequencesRandom(file_list=train_file_list, sequence_len=sequence_len,
-                                                  STFT_dict=self.STFT_dict, shuffle=shuffle_file_list, name=self.dataset_name)
-            val_dataset = SpeechSequencesRandom(file_list=val_file_list, sequence_len=sequence_len,
-                                                STFT_dict=self.STFT_dict, shuffle=shuffle_file_list, name=self.dataset_name)
-        else:
-            train_dataset = SpeechSequencesFull(file_list=train_file_list, sequence_len=sequence_len,
-                                                STFT_dict=self.STFT_dict, shuffle=shuffle_file_list, name=self.dataset_name)
-            val_dataset = SpeechSequencesFull(file_list=val_file_list, sequence_len=sequence_len,
-                                              STFT_dict=self.STFT_dict, shuffle=shuffle_file_list, name=self.dataset_name)
+        # if use_random_seq:
+        #     train_dataset = SpeechSequencesRandom(file_list=train_file_list, sequence_len=sequence_len,
+        #                                           STFT_dict=self.STFT_dict, shuffle=shuffle_file_list, name=self.dataset_name)
+        #     val_dataset = SpeechSequencesRandom(file_list=val_file_list, sequence_len=sequence_len,
+        #                                         STFT_dict=self.STFT_dict, shuffle=shuffle_file_list, name=self.dataset_name)
+        # else:
+        #     train_dataset = SpeechSequencesFull(file_list=train_file_list, sequence_len=sequence_len,
+        #                                         STFT_dict=self.STFT_dict, shuffle=shuffle_file_list, name=self.dataset_name)
+        #     val_dataset = SpeechSequencesFull(file_list=val_file_list, sequence_len=sequence_len,
+        #                                       STFT_dict=self.STFT_dict, shuffle=shuffle_file_list, name=self.dataset_name)
+        ### USING FAKE LOADER FOR TEST PURPOSES ###
+        # TODO: Implement real data loader for eICU
+        train_dataset = eICUSequence(N=500, sequence_len=sequence_len,
+                                     shuffle=shuffle_file_list,
+                                     name=self.dataset_name)
+        val_dataset = eICUSequence(N=100, sequence_len=sequence_len,
+                                     shuffle=shuffle_file_list,
+                                     name=self.dataset_name)
 
         train_num = train_dataset.__len__()
         val_num = val_dataset.__len__()
@@ -235,6 +244,7 @@ class LearningAlgorithm():
         epochs = self.cfg.getint('Training', 'epochs')
         early_stop_patience = self.cfg.getint('Training', 'early_stop_patience')
         save_frequency = self.cfg.getint('Training', 'save_frequency')
+        tag = self.cfg.get('Network', 'tag')
 
         # Create python list for loss
         train_loss = np.zeros((epochs,))
