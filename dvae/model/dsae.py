@@ -13,6 +13,7 @@ The code in this file is based on:
 """
 from torch import nn
 import torch
+from torch.distributions.multivariate_normal import MultivariateNormal
 from collections import OrderedDict
 
 
@@ -320,7 +321,7 @@ class DSAE(nn.Module):
         loss_recon = torch.sum( x/y - torch.log(x/y) - 1)
         loss_KLD_z = -0.5 * torch.sum(z_logvar - z_logvar_p 
                 - torch.div(z_logvar.exp() + (z_mean - z_mean_p).pow(2), z_logvar_p.exp())) 
-        loss_KLD_v = -0.5 * torch.sum(v_logvar -  v_logvar.exp() - v_mean.pow(2))
+        loss_KLD_v = -0.5 * torch.sum(v_logvar - v_logvar.exp() - v_mean.pow(2))
 
         loss_recon = loss_recon / (batch_size * seq_len)
         loss_KLD_z = loss_KLD_z / (batch_size * seq_len)
@@ -331,6 +332,52 @@ class DSAE(nn.Module):
 
         return loss_tot, loss_recon, loss_KLD
 
+
+    def generate_new(self, batch_size, seq_len):
+        """
+        Generates synthetic data by sampling from latent distribution and decoding.
+        """
+        # Sample from v
+        v_prior = MultivariateNormal(torch.zeros(self.v_dim), torch.eye(self.v_dim))
+        v = v_prior.sample(sample_shape=[batch_size, self.v_dim])
+        # Sample from z using prior dynamics
+        z, _, _ = self.sample_z(batch_size, seq_len)
+        # Generate x using v and z
+        y = self.generation_x(v, z)
+
+        return y
+
+    def sample_z(self, batch_size, seq_len):
+        """
+        Draw samples from prior distribution of z, using RNN.
+        """
+        z_out = None
+        z_means = None
+        z_logvars = None
+
+        # Intialize all states to 0.
+        z_t = torch.zeros(1, batch_size, self.z_dim).to(self.device)
+        # z_mean_t = torch.zeros(1, batch_size, self.z_dim).to(self.device)
+        # z_logvar_t = torch.zeros(1, batch_size, self.z_dim).to(self.device)
+        h_t = torch.zeros(self.num_RNN_prior, batch_size, self.dim_RNN_prior)
+        c_t = torch.zeros(self.num_RNN_prior, batch_size, self.dim_RNN_prior)
+        for _ in range(seq_len):
+            h_t, c_t = self.rnn_prior(z_t, (h_t, c_t))
+            z_mean_t = self.prior_mean(h_t)
+            z_logvar_t = self.prior_logvar(h_t)
+            z_t = self.reparameterization(z_mean_t, z_logvar_t)
+            if z_out is None:
+                # Only happens for first step
+                z_out = z_t.unsqueeze(0)
+                z_means = z_mean_t.unsqueeze(0)
+                z_logvars = z_logvar_t.unsqueeze(0)
+            else:
+                # Append the values of z_t
+                z_out = torch.cat((z_out, z_t.unsqueeze(1)), dim=0)
+                z_means = torch.cat((z_means, z_mean_t.unsqueeze(1)), dim=0)
+                z_logvars = torch.cat((z_logvars, z_logvar_t.unsqueeze(1)), dim=0)
+
+        return z_out, z_means, z_logvars
 
 
     def get_info(self):
