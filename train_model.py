@@ -18,6 +18,7 @@ if __name__ == '__main__':
         cfg_file = sys.argv[1]
         learning_algo = LearningAlgorithm(config_file=cfg_file)
         learning_algo.train()
+        learning_algo.generate_synth(batch_size=10, seq_len=25)
     else:
         print('Error: Please indiquate config file')
 
