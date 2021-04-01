@@ -594,6 +594,46 @@ class LearningAlgorithm():
         sf.write(audio_recon, scale_norm*x_recon, fs_x)
 
 
+    def generate_synth(self, batch_size, seq_len, model_state_file=None, out_dir=None):
+        """
+        Generates synthetic data. (NOT reconstruction).
+
+        Args:
+            batch_size: Number of sequences to generate
+            seq_len: Length of generated sequences
+            model_state_file: Saved model state to load
+            out_dir: Output directory where to save data
+        Returns:
+            synth_data: Generated data
+        """
+        if out_dir is None:
+            print("Generated data will be saved in the same directory as model.")
+            saved_root = self.cfg.get('User', 'saved_root')
+            z_dim = self.cfg.getint('Network', 'z_dim')
+            tag = self.cfg.get('Network', 'tag')
+            suffix = "{}_{}_{}_z_dim={}".format(self.dataset_name, self.date,
+                                                  tag, z_dim)
+            out_dir = os.path.join(saved_root, suffix)
+        else:
+            if not os.path.isdir(out_dir):
+                os.makedirs(out_dir)
+
+        # Load model state
+        if model_state_file is not None:
+            self.model.load_state_dict(torch.load(model_state_file, map_location=self.device))
+
+        # Generation
+        self.model.eval()
+        with torch.no_grad():
+            synth_data = self.model.generate_new(batch_size=batch_size,
+                                                 seq_len=seq_len).to('cpu').detach().numpy()
+
+        # Save data
+        tag = self.cfg.get('Network', 'tag')
+        filename = os.path.join(out_dir, F"synth_data_{tag}_len_{seq_len}")
+        np.save(filename, synth_data)
+
+
 ''' Not available for Mac users    
     def eval(self, audio_ref, audio_est, metric='all'):
         """
