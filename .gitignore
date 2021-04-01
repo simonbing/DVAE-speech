@@ -5,5 +5,6 @@ OAR.*
 *.pyc
 config/*
 script/*
+experiments/*
 .DS_Store
 .vscode/*
